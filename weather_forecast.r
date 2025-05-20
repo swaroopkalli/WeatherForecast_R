@@ -58,6 +58,34 @@ forecast_df <- data.frame(
   Precipitation = round(fc_precip$mean, 2)
 )
 
+# Plot only the forecasted Temperature
+ggplot(forecast_df, aes(x = Date, y = Temperature)) +
+  geom_line(color = "tomato", size = 1.2) +
+  labs(title = "Forecasted Temperature (Next 30 Days)",
+       x = "Date", y = "Temperature (°C)") +
+  scale_x_date(date_labels = "%b %d", date_breaks = "5 days") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Plot only the forecasted Humidity
+ggplot(forecast_df, aes(x = Date, y = Humidity)) +
+  geom_line(color = "skyblue", size = 1.2) +
+  labs(title = "Forecasted Humidity (Next 30 Days)",
+       x = "Date", y = "Humidity (%)") +
+  scale_x_date(date_labels = "%b %d", date_breaks = "5 days") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Plot only the forecasted Precipitation
+ggplot(forecast_df, aes(x = Date, y = Precipitation)) +
+  geom_line(color = "seagreen", size = 1.2) +
+  labs(title = "Forecasted Precipitation (Next 30 Days)",
+       x = "Date", y = "Precipitation (mm)") +
+  scale_x_date(date_labels = "%b %d", date_breaks = "5 days") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
 # Print forecast table
 print(forecast_df)
 
