@@ -2,7 +2,7 @@ library(readr)
 library(lubridate)
 library(forecast)
 library(ggplot2)
-
+  
 # Load dataset
 data <- read_csv("weather_forecasting_large.csv")
 
@@ -16,7 +16,7 @@ names(data)[names(data) == "Precipitation (mm)"] <- "Precipitation"
 chicago <- subset(data, Location == "Chicago")
 
 # Aggregate daily mean
-chicago_daily <- aggregate(cbind(Temperature, Humidity, Precipitation) ~ Date, chicago, mean, na.rm = TRUE)
+chicago_daily <- aggregate(cbind(Temperature, Humidity, Precipitation) ~ Date, chicago, mean, na.rm = TRUE) # nolint
 chicago_daily <- chicago_daily[order(chicago_daily$Date), ]
 
 # Create time series
@@ -34,34 +34,11 @@ future_dates <- seq(max(chicago_daily$Date) + 1, by = "day", length.out = 30)
 
 # Forecast DataFrame
 forecast_df <- data.frame(
-  Date = future_dates,
-  Temperature = round(fc_temp$mean, 1),
-  Humidity = round(fc_humidity$mean, 1),
-  Precipitation = round(fc_precip$mean, 2)
+  Date = as.Date(future_dates), # Ensure Date is Date type for write_csv
+  Temperature = round(as.numeric(fc_temp$mean), 1),
+  Humidity = round(as.numeric(fc_humidity$mean), 1),
+  Precipitation = round(as.numeric(fc_precip$mean), 2)
 )
 
-# Plot forecasts
-ggplot(forecast_df, aes(x = Date, y = Temperature)) +
-  geom_line(color = "tomato", linewidth = 1.2) +
-  labs(title = "Forecasted Temperature (Next 30 Days)", x = "Date", y = "Temperature (°C)") +
-  scale_x_date(date_labels = "%b %d", date_breaks = "5 days") +
-  theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-ggplot(forecast_df, aes(x = Date, y = Humidity)) +
-  geom_line(color = "skyblue", linewidth = 1.2) +
-  labs(title = "Forecasted Humidity (Next 30 Days)", x = "Date", y = "Humidity (%)") +
-  scale_x_date(date_labels = "%b %d", date_breaks = "5 days") +
-  theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-ggplot(forecast_df, aes(x = Date, y = Precipitation)) +
-  geom_line(color = "seagreen", linewidth = 1.2) +
-  labs(title = "Forecasted Precipitation (Next 30 Days)", x = "Date", y = "Precipitation (mm)") +
-  scale_x_date(date_labels = "%b %d", date_breaks = "5 days") +
-  theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-# Print and save forecast
-print(forecast_df)
-autoplot(fc_temp) + ggtitle("30-Day Temperature Forecast (Chicago)")
-autoplot(fc_humidity) + ggtitle("30-Day Humidity Forecast (Chicago)")
-autoplot(fc_precip) + ggtitle("30-Day Precipitation Forecast (Chicago)")
+# Save forecast to CSV only (no plots or console output)
 write_csv(forecast_df, "30_day_weather_forecast.csv")
