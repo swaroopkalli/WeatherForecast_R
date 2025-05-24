@@ -2,7 +2,7 @@ library(readr)
 library(lubridate)
 library(forecast)
 library(ggplot2)
-  
+
 # Load dataset
 data <- read_csv("weather_forecasting_large.csv")
 
@@ -11,11 +11,6 @@ data$Date <- ymd(data$Date)
 names(data)[names(data) == "Temperature (°C)"] <- "Temperature"
 names(data)[names(data) == "Humidity (%)"] <- "Humidity"
 names(data)[names(data) == "Precipitation (mm)"] <- "Precipitation"
-
-# User input of cities
-print("Available cities: ")
-print(unique(data$Location))
-city_name <- input(prompt("Enter name of city of whose you want to see forecast for next 30 days: ")) # nolint
 
 # Filter for Chicago and remove NA
 chicago <- subset(data, Location == "Chicago")
@@ -29,10 +24,11 @@ ts_temp <- ts(chicago_daily$Temperature, frequency = 365)
 ts_humidity <- ts(chicago_daily$Humidity, frequency = 365)
 ts_precip <- ts(chicago_daily$Precipitation, frequency = 365)
 
-# Fit ARIMA and forecast 30 days
+# Fit ARIMA for temperature and humidity, STLF for precipitation, and forecast 30 days
 fc_temp <- forecast(auto.arima(ts_temp), h = 30)
 fc_humidity <- forecast(auto.arima(ts_humidity), h = 30)
-fc_precip <- forecast(auto.arima(ts_precip), h = 30)
+model_tbats <- tbats(ts_precip)
+fc_precip <- forecast(model_tbats, h = 30)
 
 # Forecast dates
 future_dates <- seq(max(chicago_daily$Date) + 1, by = "day", length.out = 30)
