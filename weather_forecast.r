@@ -1,8 +1,13 @@
+# Libraries
 library(readr)
 library(lubridate)
 library(forecast)
 library(ggplot2)
+library(GGally)
+library(corrplot)
 library(dplyr)
+library(tidyr)
+library(patchwork)
 
 # Load dataset
 data <- read_csv("weather_forecasting_large.csv")
@@ -13,68 +18,78 @@ names(data)[names(data) == "Temperature (°C)"] <- "Temperature"
 names(data)[names(data) == "Humidity (%)"] <- "Humidity"
 names(data)[names(data) == "Precipitation (mm)"] <- "Precipitation"
 
-# Aggregate daily mean for each city
-data_daily <- data %>%
-  group_by(Location, Date) %>%
-  summarise(
-    Temperature = mean(Temperature, na.rm = TRUE),
-    Humidity = mean(Humidity, na.rm = TRUE),
-    Precipitation = mean(Precipitation, na.rm = TRUE)
-  ) %>%
-  ungroup() %>%
-  arrange(Location, Date)
+# Filter for Chicago and prepare data
+chicago <- subset(data, Location == "Chicago")
+chicago_daily <- chicago %>%
+  group_by(Date) %>%
+  summarize(across(c(Temperature, Humidity, Precipitation), mean, na.rm = TRUE)) %>%
+  arrange(Date)
 
-# Forecasting function
-forecast_weather <- function(city_data) {
-  ts_temp <- ts(city_data$Temperature, frequency = 365)
-  ts_humidity <- ts(city_data$Humidity, frequency = 365)
-  ts_precip <- ts(city_data$Precipitation, frequency = 365)
+# Time Series Plots
+p1 <- ggplot(chicago_daily, aes(x = Date, y = Temperature)) + geom_line() + ggtitle("Temperature Over Time")
+p2 <- ggplot(chicago_daily, aes(x = Date, y = Humidity)) + geom_line() + ggtitle("Humidity Over Time")
+p3 <- ggplot(chicago_daily, aes(x = Date, y = Precipitation)) + geom_line() + ggtitle("Precipitation Over Time")
 
-  # ARIMA for temperature and humidity, TBATS for precipitation
-  fc_temp <- forecast(auto.arima(ts_temp), h = 30)
-  fc_humidity <- forecast(auto.arima(ts_humidity), h = 30)
-  model_tbats <- tbats(ts_precip)
-  fc_precip <- forecast(model_tbats, h = 30)
+# Monthly Trends
+chicago_daily$Month <- month(chicago_daily$Date, label = TRUE)
+monthly_avg <- chicago_daily %>%
+  group_by(Month) %>%
+  summarize(across(c(Temperature, Humidity, Precipitation), mean))
 
-  return(data.frame(
-    Date = as.Date(seq(max(city_data$Date) + 1, by = "day", length.out = 30)),
-    Temperature = round(as.numeric(fc_temp$mean), 1),
-    Humidity = round(as.numeric(fc_humidity$mean), 1),
-    Precipitation = round(as.numeric(fc_precip$mean), 2),
-    Location = city_data$Location[1]
-  ))
-}
+p4 <- ggplot(monthly_avg, aes(x = Month, y = Temperature)) + geom_bar(stat = "identity") + ggtitle("Monthly Avg Temperature")
+p5 <- ggplot(monthly_avg, aes(x = Month, y = Humidity)) + geom_bar(stat = "identity") + ggtitle("Monthly Avg Humidity")
+p6 <- ggplot(monthly_avg, aes(x = Month, y = Precipitation)) + geom_bar(stat = "identity") + ggtitle("Monthly Avg Precipitation")
 
-# Apply forecasting function to each city
-cities <- unique(data$Location)
-forecast_results <- do.call(rbind, lapply(cities, function(city) {
-  city_data <- filter(data_daily, Location == city)
-  forecast_weather(city_data)
-}))
+# Distribution Plots
+p7 <- ggplot(chicago_daily, aes(x = Temperature)) + geom_histogram(bins = 30, fill = "steelblue") + ggtitle("Temperature Distribution")
+p8 <- ggplot(chicago_daily, aes(x = Humidity)) + geom_histogram(bins = 30, fill = "darkgreen") + ggtitle("Humidity Distribution")
+p9 <- ggplot(chicago_daily, aes(x = Precipitation)) + geom_histogram(bins = 30, fill = "purple") + ggtitle("Precipitation Distribution")
 
-# Save forecast to CSV
-write_csv(forecast_results, "30_day_weather_forecast_multiple_cities.csv")
+# Temperature Boxplot
+p10 <- ggplot(chicago_daily, aes(x = Month, y = Temperature)) +
+  geom_boxplot(fill = "skyblue") +
+  labs(title = "Temperature by Month in Chicago", x = "Month", y = "Temperature (°C)") +
+  theme_minimal()
 
-# Plot forecasts for each city
-for (city in unique(forecast_results$Location)) {
-  city_forecast <- filter(forecast_results, Location == city)
+# Humidity Boxplot
+p11 <- ggplot(chicago_daily, aes(x = Month, y = Humidity)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Humidity by Month in Chicago", x = "Month", y = "Humidity (%)") +
+  theme_minimal()
 
-  p1 <- ggplot(city_forecast, aes(x = Date, y = Temperature)) +
-    geom_line(color = "tomato") +
-    ggtitle(paste("30-Day Temperature Forecast -", city)) +
-    theme_minimal()
+# Precipitation Boxplot
+p12 <- ggplot(chicago_daily, aes(x = Month, y = Precipitation)) +
+  geom_boxplot(fill = "lightcoral") +
+  labs(title = "Precipitation by Month in Chicago", x = "Month", y = "Precipitation (mm)") +
+  theme_minimal()
 
-  p2 <- ggplot(city_forecast, aes(x = Date, y = Humidity)) +
-    geom_line(color = "steelblue") +
-    ggtitle(paste("30-Day Humidity Forecast -", city)) +
-    theme_minimal()
+# Correlation Heatmap
+corr_matrix <- cor(chicago_daily %>% select(Temperature, Humidity, Precipitation), use = "complete.obs")
+corrplot(corr_matrix, method = "color", addCoef.col = "black", tl.col = "black", title = "Correlation Heatmap", mar = c(0,0,1,0))
 
-  p3 <- ggplot(city_forecast, aes(x = Date, y = Precipitation)) +
-    geom_line(color = "seagreen") +
-    ggtitle(paste("30-Day Precipitation Forecast -", city)) +
-    theme_minimal()
+# Forecast Plots
+ts_temp <- ts(chicago_daily$Temperature, frequency = 365)
+ts_humidity <- ts(chicago_daily$Humidity, frequency = 365)
+ts_precip <- ts(chicago_daily$Precipitation, frequency = 365)
 
-  print(p1)
-  print(p2)
-  print(p3)
-}
+fc_temp <- forecast(auto.arima(ts_temp), h = 30)
+fc_humidity <- forecast(auto.arima(ts_humidity), h = 30)
+fc_precip <- forecast(tbats(ts_precip), h = 30)
+
+autoplot(fc_temp) + ggtitle("30-Day Temperature Forecast")
+autoplot(fc_humidity) + ggtitle("30-Day Humidity Forecast")
+autoplot(fc_precip) + ggtitle("30-Day Precipitation Forecast")
+
+# Residual Diagnostics
+checkresiduals(fc_temp)
+checkresiduals(fc_humidity)
+checkresiduals(fc_precip)
+
+# Pairplot for Relationships
+ggpairs(chicago_daily %>% select(Temperature, Humidity, Precipitation))
+
+# You can also combine plots using patchwork
+(p1 / p2 / p3)
+(p4 / p5 / p6)
+(p7 / p8 / p9)
+(p10 / p11 / p12)
