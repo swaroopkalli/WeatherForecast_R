@@ -93,3 +93,17 @@ ggpairs(chicago_daily %>% select(Temperature, Humidity, Precipitation))
 (p4 / p5 / p6)
 (p7 / p8 / p9)
 (p10 / p11 / p12)
+
+# Create future dates for the next 30 days
+future_dates <- seq(max(chicago_daily$Date) + 1, by = "day", length.out = 30)
+
+# Create a data frame with the forecasts
+forecast_df <- data.frame(
+  Date = future_dates,
+  Temperature = as.numeric(fc_temp$mean),
+  Humidity = as.numeric(fc_humidity$mean),
+  Precipitation = as.numeric(fc_precip$mean)
+)
+
+# Write the forecast to a CSV file
+write.csv(forecast_df, "30_day_weather_forecast.csv", row.names = FALSE)
